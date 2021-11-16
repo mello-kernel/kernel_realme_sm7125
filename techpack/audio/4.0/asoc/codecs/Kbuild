@@ -219,6 +219,7 @@ endif
 ifeq ($(KERNEL_BUILD), 1)
 	obj-y	+= wcd934x/
 	obj-y	+= wcd937x/
+	obj-y	+= tfa98xx-v6/
 	obj-y	+= wcd938x/
 	obj-y	+= bolero/
 endif
