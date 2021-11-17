@@ -27,10 +27,10 @@
 #dts-dirs += lg
 #dts-dirs += zte
 #else
-#dts-dirs += 19771
-#dts-dirs += 19721
-#dts-dirs += 206B1
-#dts-dirs += 20711 
+dts-dirs += 19771
+dts-dirs += 19721
+dts-dirs += 206B1
+dts-dirs += 20711
 #endif
 
 subdir-y	:= $(dts-dirs)
