@@ -29,10 +29,10 @@
 
 #ifdef OPLUS_FEATURE_CHG_BASIC
 /* LiYue@BSP.CHG.basic, 2019/07/01, add for charging */
-#include "../../../../kernel/msm-4.14/drivers/power/supply/qcom/smb5-reg.h"
-#include "../../../../kernel/msm-4.14/drivers/power/supply/qcom/schgm-flash.h"
-#include "../../../../kernel/msm-4.14/drivers/power/supply/qcom/battery.h"
-#include "../../../../kernel/msm-4.14/drivers/power/supply/qcom/step-chg-jeita.h"
+#include "../../supply/qcom/smb5-reg.h"
+#include "../../supply/qcom/schgm-flash.h"
+#include "../../supply/qcom/battery.h"
+#include "../../supply/qcom/step-chg-jeita.h"
 #include "oplus_battery_sm6125P.h"
 #include <linux/of_batterydata.h>
 #include "op_charge.h"

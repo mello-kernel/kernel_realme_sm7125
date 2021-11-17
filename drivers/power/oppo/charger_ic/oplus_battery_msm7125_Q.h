@@ -29,8 +29,8 @@
 /**************************************************/
 #ifdef VENDOR_EDIT
 /* lizhijie@BSP.CHG.Basic, 2020/02/25, lzj Add for charging */
-#include "../../../../kernel/msm-4.14/drivers/power/supply/qcom/storm-watch.h"
-#include "../../../../kernel/msm-4.14/drivers/power/supply/qcom/battery.h"
+#include "../../supply/qcom/storm-watch.h"
+#include "../../supply/qcom/battery.h"
 #endif
 
 #ifdef VENDOR_EDIT

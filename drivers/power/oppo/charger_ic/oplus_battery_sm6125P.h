@@ -24,7 +24,7 @@
 
 #ifdef OPLUS_FEATURE_CHG_BASIC
 /* LiYue@BSP.CHG.Basic, 2019/07/01, Add for charging */
-#include "../../../../kernel/msm-4.14/drivers/power/supply/qcom/storm-watch.h"
+#include "../../supply/qcom/storm-watch.h"
 #endif
 
 enum print_reason {

@@ -23,8 +23,8 @@
 #include <linux/usb/class-dual-role.h>
 #ifdef OPLUS_FEATURE_CHG_BASIC
 /* zhangkun@BSP.CHG.Basic, 2019/03/25, Add for charging */
-#include "../../../../kernel/msm-4.14/drivers/power/supply/qcom/storm-watch.h"
-#include "../../../../kernel/msm-4.14/drivers/power/supply/qcom/battery.h"
+#include "../../supply/qcom/storm-watch.h"
+#include "../../supply/qcom/battery.h"
 #endif
 
 #ifdef OPLUS_FEATURE_CHG_BASIC

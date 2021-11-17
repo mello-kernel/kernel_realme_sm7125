@@ -41,11 +41,11 @@
 #include <linux/usb/class-dual-role.h>
 #include <linux/usb/typec.h>
 #include <linux/usb/usbpd.h>
-#include "../../../../kernel/msm-4.14/drivers/power/supply/qcom/smb5-reg.h"
-#include "../../../../kernel/msm-4.14/drivers/power/supply/qcom/schgm-flash.h"
-#include "../../../../kernel/msm-4.14/drivers/power/supply/qcom/step-chg-jeita.h"
-#include "../../../../kernel/msm-4.14/drivers/power/supply/qcom/battery.h"
-#include "../../../../kernel/msm-4.14/drivers/power/supply/qcom/storm-watch.h"
+#include "../../supply/qcom/smb5-reg.h"
+#include "../../supply/qcom/schgm-flash.h"
+#include "../../supply/qcom/step-chg-jeita.h"
+#include "../../supply/qcom/battery.h"
+#include "../../supply/qcom/storm-watch.h"
 
 #include <soc/oppo/boot_mode.h>
 #include <soc/oppo/device_info.h>
@@ -17208,7 +17208,7 @@ static const struct dev_pm_ops smb5_pm_ops = {
 	.resume		= smb5_pm_resume,
 	.suspend		= smb5_pm_suspend,
 };
-void oplus_set_typec_sinkonly()
+void oplus_set_typec_sinkonly(void)
 {
 	oplus_set_otg_switch_status(false);
 };
