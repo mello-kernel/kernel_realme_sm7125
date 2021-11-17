@@ -53,10 +53,13 @@
 
 /* #ifdef OPLUS_ARCH_EXTENDS */
 /*Juqiang.Geng@MULTIMEDIA.AUDIODRIVER.SMARTPA, 2020/09/17, Add for aw882xx smartpa*/
-#define CONFIG_SND_SOC_AWINIC_AW882XX
 #ifdef CONFIG_SND_SOC_AWINIC_AW882XX //add by Jerry
 extern void aw_cal_unmap_memory(void);
 #endif /*CONFIG_SND_SOC_AWINIC_AW882XX*/
+
+#ifdef CONFIG_SND_SOC_TFA9874
+#include <linux/proc_fs.h>
+#endif  /*CONFIG_SND_SOC_TFA9874*/
 /* #endif OPLUS_ARCH_EXTENDS */
 
 #define DRV_NAME "kona-asoc-snd"
@@ -112,6 +115,12 @@ extern void aw_cal_unmap_memory(void);
 #define WCN_CDC_SLIM_RX_CH_MAX 2
 #define WCN_CDC_SLIM_TX_CH_MAX 2
 #define WCN_CDC_SLIM_TX_CH_MAX_LITO 3
+
+#ifdef CONFIG_SND_SOC_TFA9874
+extern int get_smartpa_id(void);
+struct proc_dir_entry *smartpa_proc = NULL;
+#define SMARTPA_PROC_FILE "smartpa_id"
+#endif
 
 enum {
 	RX_PATH = 0,
@@ -509,12 +518,12 @@ static struct dev_config mi2s_rx_cfg[] = {
 static struct dev_config mi2s_tx_cfg[] = {
 	[PRIM_MI2S] = {SAMPLING_RATE_48KHZ, SNDRV_PCM_FORMAT_S16_LE, 1},
 	[SEC_MI2S]  = {SAMPLING_RATE_48KHZ, SNDRV_PCM_FORMAT_S16_LE, 1},
-	#ifdef CONFIG_SND_SOC_AW882XX
+	#ifdef CONFIG_SND_SOC_AWINIC_AW882XX
     /*Guian.Chen@MULTIMEDIA.AUDIODRIVER.SMARTPA, 2020/07/31, Add for aw882xx smartpa*/
 	[TERT_MI2S] = {SAMPLING_RATE_48KHZ, SNDRV_PCM_FORMAT_S16_LE, 2},
-	#else /*CONFIG_SND_SOC_AW882XX*/
+	#else /*CONFIG_SND_SOC_AWINIC_AW882XX*/
 	[TERT_MI2S] = {SAMPLING_RATE_48KHZ, SNDRV_PCM_FORMAT_S16_LE, 1},
-	#endif /*CONFIG_SND_SOC_AW882XX*/
+	#endif /*CONFIG_SND_SOC_AWINIC_AW882XX*/
 	[QUAT_MI2S] = {SAMPLING_RATE_48KHZ, SNDRV_PCM_FORMAT_S16_LE, 1},
 	[QUIN_MI2S] = {SAMPLING_RATE_48KHZ, SNDRV_PCM_FORMAT_S16_LE, 1},
 	[SEN_MI2S] = {SAMPLING_RATE_48KHZ, SNDRV_PCM_FORMAT_S16_LE, 1},
@@ -8306,6 +8315,49 @@ static int msm_audio_ssr_register(struct device *dev)
 	return ret;
 }
 
+#ifdef CONFIG_SND_SOC_TFA9874
+static int smartpa_id_proc_show(struct seq_file *m, void *v)
+{
+	seq_printf(m, "%d\n", get_smartpa_id());
+	return 0;
+}
+
+static int smartpa_id_proc_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, smartpa_id_proc_show, PDE_DATA(inode));
+}
+
+static const struct file_operations smartpa_id_proc_ops = {
+	.owner		= THIS_MODULE,
+	.open		= smartpa_id_proc_open,
+	.read		= seq_read,
+	.llseek		= seq_lseek,
+	.release	= single_release,
+};
+
+/* chengong@ODM_LQ@Multimedia.Audio,2019/10/29,add for smartpa evt1 */
+static void odm_mi2s_be_dai_rename()
+{
+	int i = 0;
+
+	for (; i < ARRAY_SIZE(msm_mi2s_be_dai_links); i++) {
+		if (!strcmp(msm_mi2s_be_dai_links[i].name, LPASS_BE_TERT_MI2S_RX) ||
+			!strcmp(msm_mi2s_be_dai_links[i].name, LPASS_BE_TERT_MI2S_TX)) {
+			if (get_smartpa_id() == 1) {
+				mi2s_tx_cfg[TERT_MI2S].channels = 2;
+				msm_mi2s_be_dai_links[i].codec_name = "tfa98xx.1-0034";
+				msm_mi2s_be_dai_links[i].codec_dai_name = "tfa98xx-aif-1-34";
+			}  else if (get_smartpa_id() == 2) {
+				/* chengong@ODM_LQ@Multimedia.Audio,2019/11/20,add for aw smartpa */
+				mi2s_tx_cfg[TERT_MI2S].channels = 2;
+				msm_mi2s_be_dai_links[i].codec_name = "aw882xx_smartpa";
+				msm_mi2s_be_dai_links[i].codec_dai_name = "aw882xx-aif";
+			}
+		}
+	}
+}
+#endif
+
 static int msm_asoc_machine_probe(struct platform_device *pdev)
 {
 	struct snd_soc_card *card = NULL;
@@ -8329,6 +8381,18 @@ static int msm_asoc_machine_probe(struct platform_device *pdev)
 			sizeof(struct msm_asoc_mach_data), GFP_KERNEL);
 	if (!pdata)
 		return -ENOMEM;
+
+	#ifdef CONFIG_SND_SOC_TFA9874
+	pr_info("%s id=%d\n", __func__, get_smartpa_id());
+	odm_mi2s_be_dai_rename();
+
+	if (smartpa_proc == NULL) {
+		smartpa_proc = proc_create(SMARTPA_PROC_FILE, 0444, NULL, &smartpa_id_proc_ops);
+		if (smartpa_proc == NULL) {
+			dev_err(&pdev->dev, "%s: proc_create failed\n", __func__);
+		}
+	}
+	#endif /*CONFIG_SND_SOC_TFA987*/
 
 	card = populate_snd_card_dailinks(&pdev->dev);
 	if (!card) {

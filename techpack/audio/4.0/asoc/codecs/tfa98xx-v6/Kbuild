@@ -62,7 +62,7 @@ endif
 ############ TFA9874 ############
 
 # for nxp tfa98xx Codec
-ifdef CONFIG_SND_SOC_TFA98XX
+ifdef CONFIG_SND_SOC_TFA9874
 	TFA98XX_OBJS += tfa_container_v6.o
 	TFA98XX_OBJS += tfa98xx_v6.o
 	TFA98XX_OBJS += tfa_dsp_v6.o
@@ -119,7 +119,7 @@ ifeq ($(KERNEL_BUILD), 0)
 endif
 
 # Module information used by KBuild framework
-obj-$(CONFIG_SND_SOC_TFA98XX) += tfa98xx-v6_dlkm.o
+obj-$(CONFIG_SND_SOC_TFA9874) += tfa98xx-v6_dlkm.o
 tfa98xx-v6_dlkm-y := $(TFA98XX_OBJS)
 
 # inject some build related information
