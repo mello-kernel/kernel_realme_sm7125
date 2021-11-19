@@ -383,7 +383,8 @@ static int fpc1020_probe(struct platform_device *pdev)
                         &&(FP_FPC_1270 != get_fpsensor_type())
                         &&(FP_FPC_1511 != get_fpsensor_type())
                         &&(FP_FPC_1541 != get_fpsensor_type())
-                        &&(FP_FPC_1542 != get_fpsensor_type())) {
+                        &&(FP_FPC_1542 != get_fpsensor_type())
+                        &&(FP_FPC_1540 != get_fpsensor_type())) {
                 dev_err(dev, "found not fpc sensor\n");
                 rc = -EINVAL;
                 goto ERR_BEFORE_WAKELOCK;
