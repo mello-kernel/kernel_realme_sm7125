@@ -999,8 +999,23 @@
 				};
 			};
 		};
-		//#endif /*VENDOR_EDIT*/
 
+		fpc1020 {
+			gpio_fpc_irq_default: gpio_fpc_irq_default {
+				mux {
+					pins = "gpio92";
+					function = "gpio";
+				};
+				config {
+					pins = "gpio92";
+					drive-strength = <2>;
+					bias-disable;
+					input-enable;
+				};
+			};
+		};
+
+		//#endif /*VENDOR_EDIT*/
 		qupv3_se8_i2c_pins: qupv3_se8_i2c_pins {
 			qupv3_se8_i2c_active: qupv3_se8_i2c_active {
 				mux {
