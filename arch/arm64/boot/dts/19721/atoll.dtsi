@@ -528,11 +528,11 @@
 		};
 
 		/*zoulian@Bsp.Fingerprint.Basic, 2020/07/27, expend tz memory to 140*/
-		//pil_modem_mem: modem_region@86000000 {
-		//	compatible = "removed-dma-pool";
-		//	no-map;
-		//	reg = <0 0x86000000 0 0x8400000>;
-		//};
+		pil_modem_mem: modem_region@86000000 {
+			compatible = "removed-dma-pool";
+			no-map;
+			reg = <0 0x86000000 0 0x8400000>;
+		};
 
 		pil_camera_mem: camera_region@8e400000 {
 			compatible = "removed-dma-pool";
@@ -589,11 +589,11 @@
 		};
 
 		/*zoulian@Bsp.Fingerprint.Basic, 2020/04/10, expend tz memory to 140*/
-		pil_modem_mem: modem_region@93C00000 {
-			compatible = "removed-dma-pool";
-			no-map;
-			reg = <0 0x93C00000 0 0x8400000>;
-		};
+		//pil_modem_mem: modem_region@93C00000 {
+		//	compatible = "removed-dma-pool";
+		//	no-map;
+		//	reg = <0 0x93C00000 0 0x8400000>;
+		//};
 
 		/*zoulian@Bsp.Fingerprint.Basic, 2020/04/10, expend tz memory to 140*/
 		uio_mem: uio_mem_region {
