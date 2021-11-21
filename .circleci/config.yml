@@ -1,0 +1,16 @@
+version: 2.0
+
+jobs:
+  Mello-Oof:
+    docker:
+      - image: panchajanya1999/archlinux:latest
+    steps:
+      - run: pacman -Sy && pacman -S cpio --noconfirm
+      - run: git clone --depth=1 https://github.com/${CIRCLE_PROJECT_USERNAME}/${CIRCLE_PROJECT_REPONAME} -b ${CIRCLE_BRANCH} .
+      - run: wget https://raw.githubusercontent.com/realme-sm7125/myscripts/main/kernel_build.sh
+      - run: bash kernel_build.sh
+workflows:
+  version: 2
+  build:
+    jobs:
+      - Mello-Oof
