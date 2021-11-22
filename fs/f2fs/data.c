@@ -1425,7 +1425,7 @@ got_it:
 	return page;
 }
 
-static int __allocate_data_block(struct dnode_of_data *dn, int seg_type)
+static int __allocate_data_block(struct dnode_of_data *dn, int seg_type, int contig_level)
 {
 	struct f2fs_sb_info *sbi = F2FS_I_SB(dn->inode);
 	struct f2fs_summary sum;
@@ -1451,8 +1451,13 @@ static int __allocate_data_block(struct dnode_of_data *dn, int seg_type)
 alloc:
 	set_summary(&sum, dn->nid, dn->ofs_in_node, ni.version);
 	old_blkaddr = dn->data_blkaddr;
+#ifdef CONFIG_F2FS_BD_STAT
+	bd_lock(sbi);
+	bd_inc_array_val(sbi, hotcold_count, HC_DIRECT_IO, 1);
+	bd_unlock(sbi);
+#endif
 	f2fs_allocate_data_block(sbi, NULL, old_blkaddr, &dn->data_blkaddr,
-					&sum, seg_type, NULL, false);
+					&sum, seg_type, NULL, false, contig_level);
 	if (GET_SEGNO(sbi, old_blkaddr) != NULL_SEGNO)
 		invalidate_mapping_pages(META_MAPPING(sbi),
 					old_blkaddr, old_blkaddr);
@@ -1464,6 +1469,7 @@ alloc:
 	 */
 	return 0;
 }
+
 
 int f2fs_preallocate_blocks(struct kiocb *iocb, struct iov_iter *from)
 {
@@ -1546,10 +1552,12 @@ int f2fs_map_blocks(struct inode *inode, struct f2fs_map_blocks *map,
 	struct extent_info ei = {0,0,0};
 	block_t blkaddr;
 	unsigned int start_pgofs;
+	int contig_level;
 
 	if (!maxblocks)
 		return 0;
 
+	contig_level = check_io_seq(maxblocks);
 	map->m_len = 0;
 	map->m_flags = 0;
 
@@ -1615,7 +1623,7 @@ next_block:
 		/* use out-place-update for driect IO under LFS mode */
 		if (f2fs_lfs_mode(sbi) && flag == F2FS_GET_BLOCK_DIO &&
 							map->m_may_create) {
-			err = __allocate_data_block(&dn, map->m_seg_type);
+			err = __allocate_data_block(&dn, map->m_seg_type, contig_level);
 			if (err)
 				goto sync_out;
 			blkaddr = dn.data_blkaddr;
@@ -1636,7 +1644,7 @@ next_block:
 				WARN_ON(flag != F2FS_GET_BLOCK_PRE_DIO &&
 					flag != F2FS_GET_BLOCK_DIO);
 				err = __allocate_data_block(&dn,
-							map->m_seg_type);
+							map->m_seg_type, contig_level);
 				if (!err)
 					set_inode_flag(inode, FI_APPEND_WRITE);
 			}
@@ -3190,6 +3198,10 @@ static inline bool __should_serialize_io(struct inode *inode,
 	return false;
 }
 
+#define DEF_SYSTEM_THROTTLE_COUNT      128     /* 512KB */
+#define DEF_FILE_THROTTLE_COUNT	       4       /* 16KB */
+#define DEF_FILE_SKIP_THRESHOLD	       64
+
 static int __f2fs_write_data_pages(struct address_space *mapping,
 						struct writeback_control *wbc,
 						enum iostat_type io_type)
@@ -3217,7 +3229,15 @@ static int __f2fs_write_data_pages(struct address_space *mapping,
 			get_dirty_pages(inode) < nr_pages_to_skip(sbi, DATA) &&
 			f2fs_available_free_memory(sbi, DIRTY_DENTS))
 		goto skip_write;
-
+	if (is_inode_flag_set(inode, FI_LOG_FILE) &&
+		wbc->sync_mode == WB_SYNC_NONE &&
+		(get_dirty_pages(inode) <= DEF_FILE_THROTTLE_COUNT &&
+		F2FS_I(inode)->skip_count <= DEF_FILE_SKIP_THRESHOLD) &&
+		(get_pages(sbi, F2FS_LOG_FILE) <= DEF_SYSTEM_THROTTLE_COUNT)) {
+		F2FS_I(inode)->skip_count++;
+		goto skip_write;
+	}
+	F2FS_I(inode)->skip_count = 0;
 	/* skip writing during file defragment */
 	if (is_inode_flag_set(inode, FI_DO_DEFRAG))
 		goto skip_write;
