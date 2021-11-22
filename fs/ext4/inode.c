@@ -17,6 +17,8 @@
  *	(jj@sunsite.ms.mff.cuni.cz)
  *
  *  Assorted race fixes, rewrite of ext4_get_block() by Al Viro, 2000
+ *
+ *  Copyright (C) 2020 Oplus. All rights reserved.
  */
 
 #include <linux/fs.h>
@@ -1599,7 +1601,10 @@ errout:
 		if (inode->i_nlink)
 			ext4_orphan_del(NULL, inode);
 	}
-
+#if defined(CONFIG_OPLUS_FEATURE_EXT4_ASYNC_DISCARD)
+        //add for ext4 async discard suppot
+	ext4_update_time(EXT4_SB(inode->i_sb));
+#endif
 	return ret ? ret : copied;
 }
 

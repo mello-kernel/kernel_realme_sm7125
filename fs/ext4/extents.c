@@ -18,6 +18,8 @@
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-
+ *
+ * Copyright (C) 2020 Oplus. All rights reserved.
  */
 
 /*
@@ -5020,6 +5022,10 @@ long ext4_fallocate(struct file *file, int mode, loff_t offset, loff_t len)
 	}
 out:
 	inode_unlock(inode);
+#if defined(CONFIG_OPLUS_FEATURE_EXT4_ASYNC_DISCARD)
+        //add for ext4 async discard suppot
+	ext4_update_time(EXT4_SB(inode->i_sb));
+#endif
 	trace_ext4_fallocate_exit(inode, offset, max_blocks, ret);
 	return ret;
 }
