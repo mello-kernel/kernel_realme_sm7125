@@ -72,9 +72,6 @@ MODULE_ALIAS("mmc:block");
 #define MMC_EXTRACT_INDEX_FROM_ARG(x) ((x & 0x00FF0000) >> 16)
 #define MMC_EXTRACT_VALUE_FROM_ARG(x) ((x & 0x0000FF00) >> 8)
 
-#define MMC_ABNORMAL_TIMEOUT (10 * HZ)  //10s
-#define MMC_ABNORMAL_COUNT (30)
-
 #define mmc_req_rel_wr(req)	((req->cmd_flags & REQ_FUA) && \
 				  (rq_data_dir(req) == WRITE))
 
@@ -1541,39 +1538,6 @@ static int mmc_blk_cmd_error(struct request *req, const char *name, int error,
 	}
 }
 
-static bool mmc_blk_timeout_check(struct request *req, struct mmc_blk_request *brq)
-{
-	static unsigned int tout_cnt = 0;
-	static unsigned long tout_st = 0;
-
-	if (brq->mrq.data && brq->mrq.data->error == -ETIMEDOUT) {
-			if (tout_st == 0) {
-				tout_st = jiffies;
-				return false;
-			}
-			else if (tout_cnt >= MMC_ABNORMAL_COUNT
-					&& time_before(jiffies, tout_st + MMC_ABNORMAL_TIMEOUT)) {
-					tout_st = 0;
-					tout_cnt = 0;
-					pr_err("%s: too many timeout!\n", req->rq_disk->disk_name);
-					return true;
-			}
-			else if (!time_before(jiffies, tout_st + MMC_ABNORMAL_TIMEOUT)) {
-					tout_st = 0;
-					tout_cnt = 0;
-					return false;
-			}
-			else {
-					tout_cnt++;
-					return false;
-			}
-
-	}
-	return false;
-}
-
-
-
 /*
  * Initial r/w and stop cmd error recovery.
  * We don't know whether the card received the r/w cmd or not, so try to
@@ -1598,11 +1562,6 @@ static int mmc_blk_cmd_recovery(struct mmc_card *card, struct request *req,
 	bool prev_cmd_status_valid = true;
 	u32 status, stop_status = 0;
 	int err, retry;
-
-	if (mmc_card_sd(card) && mmc_blk_timeout_check(req, brq)) {
-					mmc_card_set_removed(card);
-					return ERR_NOMEDIUM;
-	}
 
 	if (mmc_card_removed(card))
 		return ERR_NOMEDIUM;
@@ -2126,6 +2085,57 @@ static enum mmc_blk_status mmc_blk_err_check(struct mmc_card *card,
 
 	/* Some errors (ECC) are flagged on the next commmand, so check stop, too */
 	if (brq->data.error || brq->stop.error) {
+#ifdef VENDOR_EDIT
+//Gavin.Lei@BSP.Storage.SDCard 2020-7-20 Add for abnormal SD card compatible
+		if ((-ETIMEDOUT == brq->data.error) && (mmc_card_sd(card))) {
+			if ((rq_data_dir(req) == READ) && (card->host->old_blk_rq_rd_pos != blk_rq_pos(req))) {
+				card->host->old_blk_rq_rd_pos = blk_rq_pos(req);
+				if (!card->host->card_first_rd_timeout) {
+						card->host->card_first_rd_timeout = true;
+						card->host->card_rd_timeout_start = jiffies;
+						card->host->card_multiread_timeout_err_cnt = 0;
+				} else {
+					if (time_before_eq(jiffies, card->host->card_rd_timeout_start + msecs_to_jiffies(MMC_MULTIREAD_CNT_WINDOW_S * 1000))) {
+						if (card->host->card_multiread_timeout_err_cnt < MAX_MULTIREAD_TIMEOUT_ERR_CNT) {
+							card->host->card_multiread_timeout_err_cnt++;
+						} else {
+							card->host->card_is_rd_abnormal = true;
+						}
+					} else {
+						card->host->card_rd_timeout_start = jiffies;
+						card->host->card_multiread_timeout_err_cnt = 0;
+					}
+				}
+
+				pr_err("%s: read SD Card sector %u timeout, error count %#d\n",
+					req->rq_disk->disk_name, (unsigned)blk_rq_pos(req),
+					card->host->card_multiread_timeout_err_cnt);
+			}
+			if ((rq_data_dir(req) == WRITE) && (card->host->old_blk_rq_wr_pos != blk_rq_pos(req))) {
+				card->host->old_blk_rq_wr_pos = blk_rq_pos(req);
+				if (!card->host->card_first_wr_timeout) {
+					card->host->card_first_wr_timeout = true;
+					card->host->card_wr_timeout_start = jiffies;
+					card->host->card_multiwrite_timeout_err_cnt = 0;
+				} else {
+					if (time_before_eq(jiffies, card->host->card_wr_timeout_start + msecs_to_jiffies(MMC_MULTIWRITE_CNT_WINDOW_S * 1000))) {
+						if (card->host->card_multiwrite_timeout_err_cnt < MAX_MULTIWRITE_TIMEOUT_ERR_CNT) {
+							card->host->card_multiwrite_timeout_err_cnt++;
+						} else {
+							card->host->card_is_wr_abnormal = true;
+						}
+					} else {
+						card->host->card_wr_timeout_start = jiffies;
+						card->host->card_multiwrite_timeout_err_cnt = 0;
+					}
+				}
+				pr_err("%s: write SD Card sector %u timeout, error count %#d\n",
+					req->rq_disk->disk_name, (unsigned)blk_rq_pos(req),
+					card->host->card_multiwrite_timeout_err_cnt);
+			}
+		}
+#endif /* VENDOR_EDIT */
+
 		if (need_retune && !brq->retune_retry_done) {
 			pr_debug("%s: retrying because a re-tune was needed\n",
 				 req->rq_disk->disk_name);

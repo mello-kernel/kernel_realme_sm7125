@@ -144,6 +144,11 @@ void mmc_decode_cid(struct mmc_card *card)
 	card->cid.month			= UNSTUFF_BITS(resp, 8, 4);
 
 	card->cid.year += 2000; /* SD cards year offset */
+#ifdef OPLUS_FEATURE_EMMC_SDCARD_OPTIMIZE
+//yh@PhoneSW.BSP, 2016-09-18, add print cid info for possible quick use
+	pr_info("name:%s,manfid:%x,oemid:%x\n", card->cid.prod_name, card->cid.manfid, card->cid.oemid);
+#endif
+
 }
 
 /*

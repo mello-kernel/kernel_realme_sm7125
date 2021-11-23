@@ -1302,6 +1302,22 @@ void sdhci_send_command(struct sdhci_host *host, struct mmc_command *cmd)
 	}
 #endif /* VENDOR_EDIT */
 
+#ifdef VENDOR_EDIT
+//Gavin.Lei@BSP.Storage.SDCard 2020-7-20 Add for abnormal SD card compatible
+	if (( host->mmc->card_is_rd_abnormal) && ((cmd->opcode == MMC_READ_MULTIPLE_BLOCK) || (cmd->opcode == MMC_READ_SINGLE_BLOCK))) {
+		pr_info("SD card read blocked cmd:%s\n", mmc_hostname(host->mmc));
+		cmd->error = -EIO;
+		sdhci_finish_mrq(host, cmd->mrq);
+		return;
+	}
+	if ((host->mmc->card_is_wr_abnormal) && ((cmd->opcode == MMC_WRITE_MULTIPLE_BLOCK) || (cmd->opcode == MMC_WRITE_BLOCK))) {
+		pr_info("SD card write blocked cmd:%s\n", mmc_hostname(host->mmc));
+		cmd->error = -EIO;
+		sdhci_finish_mrq(host, cmd->mrq);
+		return;
+	}
+#endif /* VENDOR_EDIT */
+
 	/* Wait max 10 ms */
 	timeout = 10000;
 
