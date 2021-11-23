@@ -1096,8 +1096,6 @@ struct ufs_hba {
 
 	bool full_init_linereset;
 	struct pinctrl *pctrl;
-
-	int latency_hist_enabled;
 #ifdef VENDOR_EDIT
 //hank.liu@Tech.Storage.UFS, 2019-10-17 add latency_hist node for ufs latency calculate in sysfs.
 	struct io_latency_state io_lat_read;
@@ -1109,12 +1107,18 @@ struct ufs_hba {
 	struct ufs_desc_size desc_size;
 	bool restore_needed;
 
+	int latency_hist_enabled;
 	struct io_latency_state io_lat_s;
 
 	bool reinit_g4_rate_A;
 	bool force_g4;
 	/* distinguish between resume and restore */
 	bool restore;
+#ifdef OPLUS_FEATURE_STORAGE_TOOL
+/* hexiaosen@BSP.Storage.UFS 2020-08-13 add for ufs reset after ffu write buffer */
+	u8 set_host_blocked;
+	struct work_struct ffu_write_buffer_finished_work;
+#endif
 
 #ifdef VENDOR_EDIT
 /* Hank.liu@TECH.PLAT.Storage, 2019-10-31, add UFS+ hpb and tw driver*/ 
