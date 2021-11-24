@@ -17,8 +17,8 @@ config OPPO_DEVICE_IFNO
   help
 	define this config to compile devinfo.c for device register
 
-source "drivers/soc/oppo/project_info/Kconfig"
-source "drivers/soc/oppo/device_info/Kconfig"
+#source "drivers/soc/oppo/project_info/Kconfig"
+#source "drivers/soc/oppo/device_info/Kconfig"
 
 #ifdef OPLUS_ARCH_EXTENDS
 #GaoTing.Gan@PSW.MultiMedia.MediaServer, 2019/03/07, Add for kevent feedback

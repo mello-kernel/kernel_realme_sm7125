@@ -74,7 +74,6 @@ config F2FS_FS_SECURITY
 #VENDOR_EDIT huangjianan@TECH.Storage.FS.F2FS, 2020-03-08, add for aging version
 config OPPO_F2FS_DEBUG
 	string
-	option env="OPPO_F2FS_DEBUG"
 
 config F2FS_CHECK_FS
 	bool "F2FS consistency checking feature"
