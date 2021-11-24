@@ -15,7 +15,12 @@
 #include <linux/kernel.h>
 #include <linux/init.h>
 
+#ifndef OPLUS_FEATURE_POWERINFO_STANDBY
+//Nanwei.Deng@BSP.Power.Basic, 2020/07/27, add for wakelock profiler
 int msm_show_resume_irq_mask;
+#else
+int msm_show_resume_irq_mask = 1;
+#endif /*OPLUS_FEATURE_POWERINFO_STANDBY*/
 
 module_param_named(
 	debug_mask, msm_show_resume_irq_mask, int, 0664);

@@ -1808,35 +1808,17 @@ err:
 
 static int cam_ife_mgr_check_and_update_fe(
 	struct cam_ife_hw_mgr_ctx         *ife_ctx,
-	struct cam_isp_acquire_hw_info    *acquire_hw_info,
-	uint32_t                           acquire_info_size)
+	struct cam_isp_acquire_hw_info    *acquire_hw_info)
 {
 	int i;
 	struct cam_isp_in_port_info       *in_port = NULL;
 	uint32_t                           in_port_length = 0;
 	uint32_t                           total_in_port_length = 0;
 
-	if (acquire_hw_info->input_info_offset >=
-		acquire_hw_info->input_info_size) {
-		CAM_ERR(CAM_ISP,
-			"Invalid size offset 0x%x is greater then size 0x%x",
-			acquire_hw_info->input_info_offset,
-			acquire_hw_info->input_info_size);
-		return -EINVAL;
-	}
-
 	in_port = (struct cam_isp_in_port_info *)
 		((uint8_t *)&acquire_hw_info->data +
 		 acquire_hw_info->input_info_offset);
 	for (i = 0; i < acquire_hw_info->num_inputs; i++) {
-
-		if (((uint8_t *)in_port +
-			sizeof(struct cam_isp_in_port_info)) >
-			((uint8_t *)acquire_hw_info +
-			acquire_info_size)) {
-			CAM_ERR(CAM_ISP, "Invalid size");
-			return -EINVAL;
-		}
 
 		if ((in_port->num_out_res > CAM_IFE_HW_OUT_RES_MAX) ||
 			(in_port->num_out_res <= 0)) {
@@ -2097,8 +2079,7 @@ static int cam_ife_mgr_acquire_hw(void *hw_mgr_priv, void *acquire_hw_args)
 	acquire_hw_info =
 		(struct cam_isp_acquire_hw_info *)acquire_args->acquire_info;
 
-	rc = cam_ife_mgr_check_and_update_fe(ife_ctx, acquire_hw_info,
-		acquire_args->acquire_info_size);
+	rc = cam_ife_mgr_check_and_update_fe(ife_ctx, acquire_hw_info);
 	if (rc) {
 		CAM_ERR(CAM_ISP, "buffer size is not enough");
 		goto free_cdm;
@@ -5084,8 +5065,7 @@ static int cam_ife_hw_mgr_get_err_type(
 
 	core_idx = evt_payload->core_index;
 	evt_payload->evt_id = CAM_ISP_HW_EVENT_ERROR;
-	evt_payload->enable_reg_dump =
-		g_ife_hw_mgr.debug_cfg.enable_reg_dump;
+	evt_payload->enable_reg_dump = true;
 
 	list_for_each_entry(isp_ife_camif_res,
 		&ife_hwr_mgr_ctx->res_list_ife_src, list) {

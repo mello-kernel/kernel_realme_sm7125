@@ -36,7 +36,12 @@
 #define CAM_SOC_MAX_BASE            CAM_SOC_MAX_BLOCK
 
 /* maximum number of device regulator */
-#define CAM_SOC_MAX_REGULATOR       5
+//#ifndef VENDOR_EDIT
+/*litao@Cam.Drv, 20200306, add for 19365 sensor porting*/
+//#define CAM_SOC_MAX_REGULATOR       5
+//#else
+#define CAM_SOC_MAX_REGULATOR       7
+//#endif
 
 /* maximum number of device clock */
 #define CAM_SOC_MAX_CLK             32

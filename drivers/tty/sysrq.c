@@ -160,6 +160,22 @@ static struct sysrq_key_op sysrq_reboot_op = {
 	.enable_mask	= SYSRQ_ENABLE_BOOT,
 };
 
+#ifdef CONFIG_OPLUS_FEATURE_PANIC_FLUSH
+/* yanwu@TECH.Storage.FS.oF2FS, 2019-09-16, add for urgent flush */
+extern int panic_flush_device_cache(int timeout);
+static void sysrq_handle_flush(int key)
+{
+	panic_flush_device_cache(0);
+}
+
+static struct sysrq_key_op sysrq_flush_op = {
+	.handler	= sysrq_handle_flush,
+	.help_msg	= "flush(y)",
+	.action_msg	= "Emergency Flush",
+	.enable_mask	= SYSRQ_ENABLE_SYNC,
+};
+#endif
+
 static void sysrq_handle_sync(int key)
 {
 	emergency_sync();
@@ -483,7 +499,12 @@ static struct sysrq_key_op *sysrq_key_table[36] = {
 	/* x: May be registered on sparc64 for global PMU dump */
 	NULL,				/* x */
 	/* y: May be registered on sparc64 for global register dump */
+#ifdef CONFIG_OPLUS_FEATURE_PANIC_FLUSH
+/* yanwu@TECH.Storage.FS.oF2FS, 2019-09-16, add for urgent flush */
+	&sysrq_flush_op,                 /* y */
+#else
 	NULL,				/* y */
+#endif
 	&sysrq_ftrace_dump_op,		/* z */
 };
 
@@ -524,6 +545,8 @@ static void __sysrq_put_key_op(int key, struct sysrq_key_op *op_p)
                 sysrq_key_table[i] = op_p;
 }
 
+extern void qcdbg_trigger_full_dump(void);
+
 void __handle_sysrq(int key, bool check_mask)
 {
 	struct sysrq_key_op *op_p;
@@ -549,6 +572,7 @@ void __handle_sysrq(int key, bool check_mask)
 		 */
 		if (!check_mask || sysrq_on_mask(op_p->enable_mask)) {
 			pr_info("%s\n", op_p->action_msg);
+			qcdbg_trigger_full_dump();
 			console_loglevel = orig_log_level;
 			op_p->handler(key);
 		} else {

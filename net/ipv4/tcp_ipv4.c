@@ -85,6 +85,20 @@
 #include <crypto/hash.h>
 #include <linux/scatterlist.h>
 
+#ifdef OPLUS_FEATURE_MODEM_DATA_NWPOWER
+/*
+*Ruansong@PSW.NW.DATA.213600, 2020/06/01
+*Add for classify glink wakeup services
+*/
+#include <net/oplus_nwpower.h>
+extern atomic_t oplus_tcp_is_input;
+extern atomic_t ipa_wakeup_hook_boot;
+extern atomic_t custom_rule_penetrate_bpf_boot;
+extern struct work_struct oplus_tcp_input_hook_work;
+extern struct oplus_tcp_hook_struct oplus_tcp_input_hook;
+extern struct timespec oplus_tcp_last_transmission_stamp;
+#endif /* OPLUS_FEATURE_MODEM_DATA_NWPOWER */
+
 #ifdef CONFIG_TCP_MD5SIG
 static int tcp_v4_md5_hash_hdr(char *md5_hash, const struct tcp_md5sig_key *key,
 			       __be32 daddr, __be32 saddr, const struct tcphdr *th);
@@ -1634,6 +1648,29 @@ int tcp_v4_rcv(struct sk_buff *skb)
 	struct sock *sk;
 	int ret;
 
+#ifdef OPLUS_FEATURE_MODEM_DATA_NWPOWER
+	/*
+	*Ruansong@PSW.NW.DATA.213700, 2020/06/01.
+	*Add for classify glink wakeup services.
+	*/
+	struct timespec now_ts;
+	struct iphdr *tmp_iph;
+	bool sch_work = false;
+
+	if (atomic_read(&ipa_wakeup_hook_boot) == 1) {
+		if (atomic_read(&oplus_tcp_is_input) == 0) {
+			now_ts = current_kernel_time();
+			tmp_iph = ip_hdr(skb);
+			if (((now_ts.tv_sec * 1000 + now_ts.tv_nsec / 1000000) - (oplus_tcp_last_transmission_stamp.tv_sec * 1000 + oplus_tcp_last_transmission_stamp.tv_nsec / 1000000)) > OPLUS_TRANSMISSION_INTERVAL) {
+				atomic_set(&oplus_tcp_is_input, 1);
+				oplus_tcp_input_hook.ipv4_addr = tmp_iph->saddr;
+				oplus_tcp_input_hook.is_ipv6 = false;
+			}
+		}
+		oplus_tcp_last_transmission_stamp = current_kernel_time();
+	}
+#endif /* OPLUS_FEATURE_MODEM_DATA_NWPOWER */
+
 	if (skb->pkt_type != PACKET_HOST)
 		goto discard_it;
 
@@ -1665,6 +1702,25 @@ lookup:
 			       th->dest, sdif, &refcounted);
 	if (!sk)
 		goto no_tcp_socket;
+
+#ifdef OPLUS_FEATURE_MODEM_DATA_NWPOWER
+	/*
+	*Ruansong@PSW.NW.DATA.213800, 2020/06/01.
+	*Add for classify glink wakeup services.
+	*/
+	if (atomic_read(&ipa_wakeup_hook_boot) == 1) {
+		if (atomic_read(&oplus_tcp_is_input) == 1 && !sch_work) {
+			if (sk->sk_state != TCP_TIME_WAIT) {
+				oplus_tcp_input_hook.uid = from_kuid_munged(&init_user_ns, sk->sk_uid);
+				oplus_tcp_input_hook.pid = sk->sk_oplus_pid;
+			}
+			schedule_work(&oplus_tcp_input_hook_work);
+			sch_work = true;
+		}
+		sk->oplus_last_rcv_stamp[0] = sk->oplus_last_rcv_stamp[1];
+		sk->oplus_last_rcv_stamp[1] = oplus_tcp_last_transmission_stamp.tv_sec * 1000 + oplus_tcp_last_transmission_stamp.tv_nsec / 1000000;
+	}
+#endif /* OPLUS_FEATURE_MODEM_DATA_NWPOWER */
 
 process:
 	if (sk->sk_state == TCP_TIME_WAIT)
@@ -1775,6 +1831,16 @@ bad_packet:
 	}
 
 discard_it:
+#ifdef OPLUS_FEATURE_MODEM_DATA_NWPOWER
+	/*
+	*Ruansong@PSW.NW.DATA.213900, 2020/06/01.
+	*Add for classify glink wakeup services.
+	*/
+	if (atomic_read(&ipa_wakeup_hook_boot) == 1 && atomic_read(&oplus_tcp_is_input) == 1 && !sch_work) {
+		schedule_work(&oplus_tcp_input_hook_work);
+		sch_work = true;
+	}
+#endif /* OPLUS_FEATURE_MODEM_DATA_NWPOWER */
 	/* Discard frame. */
 	kfree_skb(skb);
 	return 0;
@@ -2519,6 +2585,11 @@ static int __net_init tcp_sk_init(struct net *net)
 	net->ipv4.sysctl_tcp_window_scaling = 1;
 	net->ipv4.sysctl_tcp_timestamps = 1;
 	net->ipv4.sysctl_tcp_default_init_rwnd = TCP_INIT_CWND * 2;
+
+	#ifdef OPLUS_BUG_STABILITY
+        //PengHao@CONNECTIVITY.WIFI.INTERNET.1854960,2019/03/30,add for disable tcp random timestamp,some networks limit tcp syn before login
+	net->ipv4.sysctl_tcp_random_timestamp = 1;
+	#endif /* OPLUS_BUG_STABILITY */
 
 	return 0;
 fail:

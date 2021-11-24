@@ -25,6 +25,14 @@
 
 #define MMC_AUTOSUSPEND_DELAY_MS	3000
 
+#ifdef VENDOR_EDIT
+//Gavin.Lei@BSP.Storage.SDCard 2020-7-20 Add for abnormal SD card compatible
+#define MAX_MULTIREAD_TIMEOUT_ERR_CNT 10
+#define MMC_MULTIREAD_CNT_WINDOW_S   (150)
+#define MAX_MULTIWRITE_TIMEOUT_ERR_CNT 10
+#define MMC_MULTIWRITE_CNT_WINDOW_S   (300)
+#endif /* VENDOR_EDIT */
+
 struct mmc_ios {
 	unsigned int	clock;			/* clock rate */
 	unsigned int	old_rate;       /* saved clock rate */
@@ -604,6 +612,10 @@ struct mmc_host {
 
 	struct delayed_work	detect;
 	int			detect_change;	/* card detect flag */
+#ifdef VENDOR_EDIT
+//Lycan.Wang@Prd.BasicDrv, 2014-07-10 Add for retry 5 times when new sdcard init error
+    int detect_change_retry;
+#endif /* VENDOR_EDIT */
 	struct mmc_slot		slot;
 
 	const struct mmc_bus_ops *bus_ops;	/* current bus driver */
@@ -620,6 +632,11 @@ struct mmc_host {
 	bool			sdio_irq_pending;
 	atomic_t		sdio_irq_thread_abort;
 
+#ifdef VENDOR_EDIT
+//yh@bsp, 2015-10-21 Add for special card compatible
+        bool                    card_stuck_in_programing_status;
+#endif /* VENDOR_EDIT */
+
 	mmc_pm_flag_t		pm_flags;	/* requested pm features */
 
 	struct led_trigger	*led;		/* activity led */
@@ -630,6 +647,20 @@ struct mmc_host {
 	struct mmc_supply	supply;
 
 	struct dentry		*debugfs_root;
+
+#ifdef VENDOR_EDIT
+//Gavin.Lei@BSP.Storage.SDCard 2020-7-20 Add for abnormal SD card compatible
+	unsigned int	card_multiread_timeout_err_cnt;
+	sector_t	old_blk_rq_rd_pos;
+	bool		card_first_rd_timeout;
+	unsigned long	card_rd_timeout_start;
+	bool		card_is_rd_abnormal;
+	unsigned int	card_multiwrite_timeout_err_cnt;
+	sector_t	old_blk_rq_wr_pos;
+	bool		card_first_wr_timeout;
+	unsigned long	card_wr_timeout_start;
+	bool		card_is_wr_abnormal;
+#endif /* VENDOR_EDIT */
 
 	bool			err_occurred;
 	u32			err_stats[MMC_ERR_MAX];

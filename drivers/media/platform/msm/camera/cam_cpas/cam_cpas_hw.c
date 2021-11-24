@@ -97,7 +97,7 @@ static int cam_cpas_util_vote_bus_client_bw(
 	if (cam_min_camnoc_ib_bw > 0)
 		min_camnoc_ib_bw = (uint64_t)cam_min_camnoc_ib_bw * 1000000L;
 
-	CAM_DBG(CAM_CPAS, "cam_min_camnoc_ib_bw = %d, min_camnoc_ib_bw=%llu",
+	CAM_INFO(CAM_CPAS, "cam_min_camnoc_ib_bw = %d, min_camnoc_ib_bw=%llu",
 		cam_min_camnoc_ib_bw, min_camnoc_ib_bw);
 
 	if (!bus_client->valid) {
@@ -147,7 +147,7 @@ static int cam_cpas_util_vote_bus_client_bw(
 	path->vectors[0].ab = ab;
 	path->vectors[0].ib = ib;
 
-	CAM_DBG(CAM_CPAS, "Bus client=[%d][%s] :ab[%llu] ib[%llu], index[%d]",
+	CAM_INFO(CAM_CPAS, "Bus client=[%d][%s] :ab[%llu] ib[%llu], index[%d]",
 		bus_client->client_id, bus_client->name, ab, ib, idx);
 	msm_bus_scale_client_update_request(bus_client->client_id, idx);
 
@@ -526,7 +526,6 @@ static int cam_cpas_hw_reg_read(struct cam_hw_info *cpas_hw,
 	if (!CAM_CPAS_CLIENT_VALID(client_indx))
 		return -EINVAL;
 
-	mutex_lock(&cpas_core->client_mutex[client_indx]);
 	cpas_client = cpas_core->cpas_client[client_indx];
 
 	if (!CAM_CPAS_CLIENT_STARTED(cpas_core, client_indx)) {
@@ -534,7 +533,7 @@ static int cam_cpas_hw_reg_read(struct cam_hw_info *cpas_hw,
 			client_indx, cpas_client->data.identifier,
 			cpas_client->data.cell_index);
 		rc = -EPERM;
-		goto unlock_client;
+		return rc;
 	}
 
 	if (mb)
@@ -546,8 +545,6 @@ static int cam_cpas_hw_reg_read(struct cam_hw_info *cpas_hw,
 
 	*value = reg_value;
 
-unlock_client:
-	mutex_unlock(&cpas_core->client_mutex[client_indx]);
 	return rc;
 }
 
@@ -596,7 +593,7 @@ static int cam_cpas_util_set_camnoc_axi_clk_rate(
 
 		clk_rate = required_camnoc_bw / soc_private->camnoc_bus_width;
 
-		CAM_DBG(CAM_CPAS, "Setting camnoc axi clk rate : %llu %lld",
+		CAM_INFO(CAM_CPAS, "Setting camnoc axi clk rate : %llu %lld",
 			required_camnoc_bw, clk_rate);
 
 		rc = cam_soc_util_set_src_clk_rate(soc_info, clk_rate);
@@ -670,7 +667,7 @@ static int cam_cpas_util_apply_client_axi_vote(
 	axi_port->consolidated_axi_vote.compressed_bw = mnoc_bw;
 	axi_port->consolidated_axi_vote.uncompressed_bw = camnoc_bw;
 
-	CAM_DBG(CAM_CPAS,
+	CAM_INFO(CAM_CPAS,
 		"axi[(%d, %d),(%d, %d)] : camnoc_bw[%llu], mnoc_bw[ab: %llu, ib: %llu]",
 		axi_port->mnoc_bus.src, axi_port->mnoc_bus.dst,
 		axi_port->camnoc_bus.src, axi_port->camnoc_bus.dst,

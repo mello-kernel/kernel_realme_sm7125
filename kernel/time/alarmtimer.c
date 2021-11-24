@@ -34,6 +34,10 @@
 
 #define CREATE_TRACE_POINTS
 #include <trace/events/alarmtimer.h>
+#ifdef OPLUS_FEATURE_POWERINFO_STANDBY
+//Nanwei.Deng@BSP.Power.Basic, 2020/07/27, add for wakelock profiler
+#include "../../drivers/soc/oplus/owakelock/oplus_wakelock_profiler_qcom.h"
+#endif /* OPLUS_FEATURE_POWERINFO_STANDBY */
 
 /**
  * struct alarm_base - Alarm timer bases
@@ -238,7 +242,10 @@ static enum hrtimer_restart alarmtimer_fired(struct hrtimer *timer)
 
 	if (alarm->function)
 		restart = alarm->function(alarm, base->gettime());
-
+#ifdef OPLUS_FEATURE_POWERINFO_STANDBY
+	//Nanwei.Deng@BSP.Power.Basic 2018/04/28 add for count alarm times
+	alarmtimer_wakeup_count(alarm);
+#endif /*VENDOR_EDIT*/
 	spin_lock_irqsave(&base->lock, flags);
 	if (restart != ALARMTIMER_NORESTART) {
 		hrtimer_set_expires(&alarm->timer, alarm->node.expires);
@@ -284,6 +291,10 @@ static int alarmtimer_suspend(struct device *dev)
 	type = freezer_alarmtype;
 	freezer_delta = 0;
 	spin_unlock_irqrestore(&freezer_delta_lock, flags);
+    #ifdef OPLUS_FEATURE_POWERINFO_STANDBY
+	//Nanwei.Deng@Kernel.Driver, 2018/11/19, add for analysis power coumption. count alarm times
+	alarmtimer_suspend_flag_set();
+	#endif /*VENDOR_EDIT*/
 
 	rtc = alarmtimer_get_rtcdev();
 	/* If we have no rtcdev, just return */
@@ -313,6 +324,11 @@ static int alarmtimer_suspend(struct device *dev)
 
 	if (ktime_to_ns(min) < 2 * NSEC_PER_SEC) {
 		__pm_wakeup_event(ws, 2 * MSEC_PER_SEC);
+        #ifdef OPLUS_FEATURE_POWERINFO_STANDBY
+		//Nanwei.Deng@BSP.Power.Basic 2018/11/19, add for analysis power coumption. count alarm times
+		alarmtimer_suspend_flag_clear();
+		alarmtimer_busy_flag_set();
+		#endif /* VENDOR_EDIT */
 		return -EBUSY;
 	}
 
@@ -334,6 +350,10 @@ static int alarmtimer_suspend(struct device *dev)
 static int alarmtimer_resume(struct device *dev)
 {
 	struct rtc_device *rtc;
+    #ifdef OPLUS_FEATURE_POWERINFO_STANDBY
+	//Nanwei.Deng@Kernel.Driver, 2018/11/19, add for analysis power coumption. count alarm times
+	alarmtimer_suspend_flag_clear();
+	#endif /*VENDOR_EDIT*/
 
 	rtc = alarmtimer_get_rtcdev();
 	if (rtc)

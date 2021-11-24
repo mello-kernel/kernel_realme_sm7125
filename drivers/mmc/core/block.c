@@ -72,6 +72,9 @@ MODULE_ALIAS("mmc:block");
 #define MMC_EXTRACT_INDEX_FROM_ARG(x) ((x & 0x00FF0000) >> 16)
 #define MMC_EXTRACT_VALUE_FROM_ARG(x) ((x & 0x0000FF00) >> 8)
 
+#define MMC_ABNORMAL_TIMEOUT (10 * HZ)  //10s
+#define MMC_ABNORMAL_COUNT (30)
+
 #define mmc_req_rel_wr(req)	((req->cmd_flags & REQ_FUA) && \
 				  (rq_data_dir(req) == WRITE))
 
@@ -1419,6 +1422,10 @@ static int card_busy_detect(struct mmc_card *card, unsigned int timeout_ms,
 			pr_err("%s: Card stuck in programming state! %s %s\n",
 				mmc_hostname(card->host),
 				req->rq_disk->disk_name, __func__);
+#ifdef VENDOR_EDIT
+//yh@bsp, 2015-10-21 Add for special card compatible
+				card->host->card_stuck_in_programing_status = true;
+#endif /* VENDOR_EDIT */
 			return -ETIMEDOUT;
 		}
 
@@ -1534,6 +1541,39 @@ static int mmc_blk_cmd_error(struct request *req, const char *name, int error,
 	}
 }
 
+static bool mmc_blk_timeout_check(struct request *req, struct mmc_blk_request *brq)
+{
+	static unsigned int tout_cnt = 0;
+	static unsigned long tout_st = 0;
+
+	if (brq->mrq.data && brq->mrq.data->error == -ETIMEDOUT) {
+			if (tout_st == 0) {
+				tout_st = jiffies;
+				return false;
+			}
+			else if (tout_cnt >= MMC_ABNORMAL_COUNT
+					&& time_before(jiffies, tout_st + MMC_ABNORMAL_TIMEOUT)) {
+					tout_st = 0;
+					tout_cnt = 0;
+					pr_err("%s: too many timeout!\n", req->rq_disk->disk_name);
+					return true;
+			}
+			else if (!time_before(jiffies, tout_st + MMC_ABNORMAL_TIMEOUT)) {
+					tout_st = 0;
+					tout_cnt = 0;
+					return false;
+			}
+			else {
+					tout_cnt++;
+					return false;
+			}
+
+	}
+	return false;
+}
+
+
+
 /*
  * Initial r/w and stop cmd error recovery.
  * We don't know whether the card received the r/w cmd or not, so try to
@@ -1558,6 +1598,11 @@ static int mmc_blk_cmd_recovery(struct mmc_card *card, struct request *req,
 	bool prev_cmd_status_valid = true;
 	u32 status, stop_status = 0;
 	int err, retry;
+
+	if (mmc_card_sd(card) && mmc_blk_timeout_check(req, brq)) {
+					mmc_card_set_removed(card);
+					return ERR_NOMEDIUM;
+	}
 
 	if (mmc_card_removed(card))
 		return ERR_NOMEDIUM;
@@ -4251,8 +4296,11 @@ static int mmc_blk_probe(struct mmc_card *card)
 	/*
 	 * Check that the card supports the command class(es) we need.
 	 */
+#ifndef VENDOR_EDIT
+//yh@bsp, 2015/08/03, remove for can not initialize specific sdcard(CSD info mismatch card real capability)
 	if (!(card->csd.cmdclass & CCC_BLOCK_READ))
 		return -ENODEV;
+#endif
 
 	mmc_fixup_device(card, mmc_blk_fixups);
 
@@ -4303,6 +4351,19 @@ static int mmc_blk_probe(struct mmc_card *card)
 	mmc_blk_remove_req(md);
 	return 0;
 }
+
+#ifdef VENDOR_EDIT
+//Chunyi.Mei@PSW.BSP.Storage.Sdcard, 2018-12-10, Add for SD Card device information
+char *capacity_string(struct mmc_card *card){
+	static char cap_str[10] = "unknown";
+	struct mmc_blk_data *md = (struct mmc_blk_data *)card->dev.driver_data;
+	if(md==NULL){
+		return 0;
+	}
+	string_get_size((u64)get_capacity(md->disk), 512, STRING_UNITS_2, cap_str, sizeof(cap_str));
+	return cap_str;
+}
+#endif
 
 static void mmc_blk_remove(struct mmc_card *card)
 {

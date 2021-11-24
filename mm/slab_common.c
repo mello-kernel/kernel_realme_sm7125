@@ -1080,9 +1080,15 @@ new_kmalloc_cache(int idx, int type, unsigned long flags)
 	} else {
 		name = kmalloc_info[idx].name;
 	}
+#if defined(CONFIG_OPLUS_FEATURE_SLABTRACE_DEBUG)
+/* wen.luo@BSP.Kernel.Stability 2020-03-10, simple slabtrce for memleak analysis */
+	kmalloc_caches[type][idx] = create_kmalloc_cache(name,
+					kmalloc_info[idx].size, flags|SLAB_STORE_USER);
 
+#else
 	kmalloc_caches[type][idx] = create_kmalloc_cache(name,
 					kmalloc_info[idx].size, flags);
+#endif
 }
 
 /*
@@ -1235,6 +1241,12 @@ static void print_slabinfo_header(struct seq_file *m)
 	seq_puts(m, " : globalstat <listallocs> <maxobjs> <grown> <reaped> <error> <maxfreeable> <nodeallocs> <remotefrees> <alienoverflow>");
 	seq_puts(m, " : cpustat <allochit> <allocmiss> <freehit> <freemiss>");
 #endif
+#ifdef OPLUS_FEATURE_HEALTHINFO
+/* Kui.Zhang@PSW.BSP.Kernel.Performance, 2018-11-12, if SLAB_STAT_DEBUG is
+ * is enabled, /proc/slabinfo is created for getting more slab details. */
+	seq_puts(m, " <reclaim>");
+
+#endif /* OPLUS_FEATURE_HEALTHINFO */
 	seq_putc(m, '\n');
 }
 
@@ -1290,8 +1302,16 @@ static void cache_show(struct kmem_cache *s, struct seq_file *m)
 
 	seq_printf(m, " : tunables %4u %4u %4u",
 		   sinfo.limit, sinfo.batchcount, sinfo.shared);
+#ifndef OPLUS_FEATURE_HEALTHINFO
+	/* Kui.Zhang@PSW.BSP.Kernel.Performance, 2018-11-12, if SLAB_STAT_DEBUG is
+	 * is enabled, /proc/slabinfo is created for getting more slab details. */
 	seq_printf(m, " : slabdata %6lu %6lu %6lu",
 		   sinfo.active_slabs, sinfo.num_slabs, sinfo.shared_avail);
+#else /* OPLUS_FEATURE_HEALTHINFO */
+	seq_printf(m, " : slabdata %6lu %6lu %6lu %1d",
+			   sinfo.active_slabs, sinfo.num_slabs, sinfo.shared_avail,
+			   ((s->flags & SLAB_RECLAIM_ACCOUNT) == SLAB_RECLAIM_ACCOUNT) ? 1: 0);
+#endif /* OPLUS_FEATURE_HEALTHINFO */
 	slabinfo_show_stats(m, s);
 	seq_putc(m, '\n');
 }

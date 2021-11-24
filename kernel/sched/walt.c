@@ -30,7 +30,17 @@
 #include "walt.h"
 
 #include <trace/events/sched.h>
-
+#ifdef OPLUS_FEATURE_UIFIRST
+// XuHaifeng@BSP.KERNEL.PERFORMANCE, 2020/06/23, Add for UIFirst(sldie boost)
+#include <linux/uifirst/uifirst_sched_common.h>
+#endif
+#ifdef OPLUS_FEATURE_UIFIRST
+// XuHaifeng@BSP.KERNEL.PERFORMANCE, 2020/08/03, Add for UIFirst(slide boost)
+#include <linux/sched.h>
+extern u64 ux_task_load[];
+extern u64 ux_load_ts[];
+#define UX_LOAD_WINDOW 8000000
+#endif /* OPLUS_FEATURE_UIFIRST */
 const char *task_event_names[] = {"PUT_PREV_TASK", "PICK_NEXT_TASK",
 				  "TASK_WAKE", "TASK_MIGRATE", "TASK_UPDATE",
 				"IRQ_UPDATE"};
@@ -515,7 +525,12 @@ u64 freq_policy_load(struct rq *rq)
 	u64 aggr_grp_load = cluster->aggr_grp_load;
 	u64 load, tt_load = 0;
 	u64 coloc_boost_load = cluster->coloc_boost_load;
-
+#ifdef OPLUS_FEATURE_UIFIRST
+	// XuHaifeng@BSP.KERNEL.PERFORMANCE, 2020/08/18, Add for UIFirst(slide boost)
+	u64 wallclock = sched_ktime_clock();
+	u64 timeline = 0;
+	int cpu = cpu_of(rq);
+#endif /* OPLUS_FEATURE_UIFIRST */
 	if (rq->ed_task != NULL) {
 		load = sched_ravg_window;
 		goto done;
@@ -542,6 +557,15 @@ u64 freq_policy_load(struct rq *rq)
 	default:
 		break;
 	}
+#ifdef OPLUS_FEATURE_UIFIRST
+	// XuHaifeng@BSP.KERNEL.PERFORMANCE, 2020/08/18, Add for UIFirst(slide boost)
+	if (sysctl_uifirst_enabled && sysctl_slide_boost_enabled && ux_load_ts[cpu]) {
+		timeline = wallclock - ux_load_ts[cpu];
+		if  (timeline >= UX_LOAD_WINDOW)
+			ux_task_load[cpu] = 0;
+		load = max_t(u64, load, ux_task_load[cpu]);
+	}
+#endif /* OPLUS_FEATURE_UIFIRST */
 
 done:
 	trace_sched_load_to_gov(rq, aggr_grp_load, tt_load, sched_freq_aggr_en,
@@ -774,6 +798,25 @@ migrate_top_tasks(struct task_struct *p, struct rq *src_rq, struct rq *dst_rq)
 	}
 }
 
+#ifdef OPLUS_FEATURE_EDTASK_IMPROVE
+/* Chuck.Huang@Power.basic, 2020-09-03, Add for improving ed task migration */
+void migrate_ed_task(struct task_struct *p, u64 wallclock,
+		struct rq *src_rq, struct rq *dest_rq)
+{
+	int src_cpu = cpu_of(src_rq);
+	int dest_cpu = cpu_of(dest_rq);
+
+	/* For ed task, reset last_wake_ts if task migrate to faster cpu */
+	if (capacity_orig_of(src_cpu) < capacity_orig_of(dest_cpu)) {
+		p->last_wake_ts = wallclock;
+		if(dest_rq->ed_task == p) {
+			dest_rq->ed_task = NULL;
+		}
+	}
+}
+extern int sysctl_ed_task_enabled;
+#endif
+
 void fixup_busy_time(struct task_struct *p, int new_cpu)
 {
 	struct rq *src_rq = task_rq(p);
@@ -891,6 +934,13 @@ void fixup_busy_time(struct task_struct *p, int new_cpu)
 			dest_rq->ed_task = p;
 		}
 	}
+
+#ifdef OPLUS_FEATURE_EDTASK_IMPROVE
+/* Chuck.Huang@Power.basic, 2020-09-03, Add for improving ed task migration */
+	if (sysctl_ed_task_enabled) {
+		migrate_ed_task(p, wallclock, src_rq, dest_rq);
+	}
+#endif
 
 done:
 	if (p->state == TASK_WAKING)

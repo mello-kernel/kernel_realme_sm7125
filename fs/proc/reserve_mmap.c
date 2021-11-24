@@ -76,11 +76,7 @@ static const struct seq_operations proc_pid_rmaps_op = {
 	.start	= reserve_vma_m_start,
 	.next	= reserve_vma_m_next,
 	.stop	= m_stop,
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(4,14,186)
-	.show	= show_map
-#else
 	.show	= show_pid_map
-#endif
 };
 
 static int pid_rmaps_open(struct inode *inode, struct file *file)

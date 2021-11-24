@@ -121,9 +121,25 @@ int sysctl_tcp_invalid_ratelimit __read_mostly = HZ/2;
 #define TCP_REMNANT (TCP_FLAG_FIN|TCP_FLAG_URG|TCP_FLAG_SYN|TCP_FLAG_PSH)
 #define TCP_HP_BITS (~(TCP_RESERVED_BITS|TCP_FLAG_PSH))
 
+//#ifdef OPLUS_FEATURE_WIFI_SLA
+//HuangJunyuan@CONNECTIVITY.WIFI.NETWORK.4502, 2018/04/10,Add code for appo sla function
+void (*statistic_dev_rtt)(struct sock *sk,long rtt) = NULL;
+EXPORT_SYMBOL(statistic_dev_rtt);
+//#endif /* OPLUS_FEATURE_WIFI_SLA */
+
 #define REXMIT_NONE	0 /* no loss recovery to do */
 #define REXMIT_LOST	1 /* retransmit packets marked lost */
 #define REXMIT_NEW	2 /* FRTO-style transmit of unsent/new packets */
+#ifdef OPLUS_FEATURE_MODEM_DATA_NWPOWER
+/*
+*Ruansong@PSW.NW.DATA.213300, 2020/06/01
+*Add for classify glink wakeup services
+*/
+#include <net/oplus_nwpower.h>
+extern atomic_t tcpsynretrans_hook_boot;
+extern struct work_struct oplus_tcp_input_tcpsynretrans_hook_work;
+extern struct oplus_tcp_hook_struct oplus_tcp_input_tcpsynretrans_hook;
+#endif /* OPLUS_FEATURE_MODEM_DATA_NWPOWER */
 
 static void tcp_gro_dev_warn(struct sock *sk, const struct sk_buff *skb,
 			     unsigned int len)
@@ -780,6 +796,13 @@ static void tcp_rtt_estimator(struct sock *sk, long mrtt_us)
 			tp->rtt_seq = tp->snd_nxt;
 			tp->mdev_max_us = tcp_rto_min_us(sk);
 		}
+                //#ifdef OPLUS_FEATURE_WIFI_SLA
+                //HuangJunyuan@CONNECTIVITY.WIFI.NETWORK.4502, 2018/04/10,
+                //Add code for appo sla function
+                if(TCP_ESTABLISHED == sk->sk_state && NULL != statistic_dev_rtt){
+                        statistic_dev_rtt(sk,mrtt_us);
+                }
+                //#endif /* OPLUS_FEATURE_WIFI_SLA */
 	} else {
 		/* no previous measure. */
 		srtt = m << 3;		/* take the measured time to be rtt */
@@ -4678,6 +4701,13 @@ static void tcp_data_queue(struct sock *sk, struct sk_buff *skb)
 	struct tcp_sock *tp = tcp_sk(sk);
 	bool fragstolen;
 	int eaten;
+#ifdef OPLUS_FEATURE_MODEM_DATA_NWPOWER
+	/*
+	*Ruansong@PSW.NW.DATA.213400, 2020/06/01
+	*Add for classify glink wakeup services
+	*/
+	struct timespec now_ts;
+#endif /* OPLUS_FEATURE_MODEM_DATA_NWPOWER */
 
 	if (TCP_SKB_CB(skb)->seq == TCP_SKB_CB(skb)->end_seq) {
 		__kfree_skb(skb);
@@ -4736,6 +4766,30 @@ queue_and_out:
 
 	if (!after(TCP_SKB_CB(skb)->end_seq, tp->rcv_nxt)) {
 		/* A retransmit, 2nd most common case.  Force an immediate ack. */
+#ifdef OPLUS_FEATURE_MODEM_DATA_NWPOWER
+		/*
+		*Ruansong@PSW.NW.DATA.213500, 2020/06/01
+		*Add for classify glink wakeup services
+		*/
+		if (atomic_read(&tcpsynretrans_hook_boot) == 1) {
+			now_ts = current_kernel_time();
+			if (((now_ts.tv_sec * 1000 + now_ts.tv_nsec / 1000000) - sk->oplus_last_rcv_stamp[0]) > OPLUS_TCP_RETRANSMISSION_INTERVAL) {
+				if (sk->sk_v6_daddr.s6_addr32[0] == 0 && sk->sk_v6_daddr.s6_addr32[1] == 0) {
+					oplus_tcp_input_tcpsynretrans_hook.ipv4_addr = sk->sk_daddr;
+					oplus_tcp_input_tcpsynretrans_hook.is_ipv6 = false;
+					schedule_work(&oplus_tcp_input_tcpsynretrans_hook_work);
+				} else {
+					oplus_tcp_input_tcpsynretrans_hook.ipv6_addr1 = (u64)ntohl(sk->sk_v6_daddr.s6_addr32[0]) << 32 | ntohl(sk->sk_v6_daddr.s6_addr32[1]);
+					oplus_tcp_input_tcpsynretrans_hook.ipv6_addr2 = (u64)ntohl(sk->sk_v6_daddr.s6_addr32[2]) << 32 | ntohl(sk->sk_v6_daddr.s6_addr32[3]);
+					oplus_tcp_input_tcpsynretrans_hook.is_ipv6 = true;
+					schedule_work(&oplus_tcp_input_tcpsynretrans_hook_work);
+				}
+				oplus_tcp_input_tcpsynretrans_hook.uid = from_kuid_munged(&init_user_ns, sk->sk_uid);
+				oplus_tcp_input_tcpsynretrans_hook.pid = sk->sk_oplus_pid;
+			}
+		}
+#endif /* OPLUS_FEATURE_MODEM_DATA_NWPOWER */
+
 		NET_INC_STATS(sock_net(sk), LINUX_MIB_DELAYEDACKLOST);
 		tcp_dsack_set(sk, TCP_SKB_CB(skb)->seq, TCP_SKB_CB(skb)->end_seq);
 
@@ -5692,6 +5746,17 @@ static int tcp_rcv_synsent_state_process(struct sock *sk, struct sk_buff *skb,
 	struct tcp_fastopen_cookie foc = { .len = -1 };
 	int saved_clamp = tp->rx_opt.mss_clamp;
 	bool fastopen_fail;
+        #ifdef OPLUS_BUG_STABILITY
+        //ZhaoMengqing@CONNECTIVITY.WIFI.INTERNET.1394484, 2019/04/02,add for: When find TCP SYN-ACK Timestamp value error, just do not use Timestamp
+        static int ts_error_count = 0;
+        int ts_error_threshold = sysctl_tcp_ts_control[0];
+
+        //when network change (frameworks set sysctl_tcp_ts_control[1] = 1), clear ts_error_count
+        if (sysctl_tcp_ts_control[1] == 1) {
+                ts_error_count = 0;
+                sysctl_tcp_ts_control[1] = 0;
+        }
+        #endif /* OPLUS_BUG_STABILITY */
 
 	tcp_parse_options(sock_net(sk), skb, &tp->rx_opt, 0, &foc);
 	if (tp->rx_opt.saw_tstamp && tp->rx_opt.rcv_tsecr)
@@ -5715,9 +5780,27 @@ static int tcp_rcv_synsent_state_process(struct sock *sk, struct sk_buff *skb,
 			     tcp_time_stamp(tp))) {
 			NET_INC_STATS(sock_net(sk),
 					LINUX_MIB_PAWSACTIVEREJECTED);
+                        #ifdef OPLUS_BUG_STABILITY
+			//ZhaoMengqing@CONNECTIVITY.WiFi.Network.internet.1394484, 2019/04/02,add for: When find TCP SYN-ACK Timestamp value error, just do not use Timestamp
+			//if count > threshold, disable TCP Timestamps
+			if (ts_error_threshold > 0) {
+				ts_error_count++;
+				if (ts_error_count >= ts_error_threshold) {
+					sock_net(sk)->ipv4.sysctl_tcp_timestamps = 0;
+					ts_error_count = 0;
+				}
+			}
+			#endif /* OPLUS_BUG_STABILITY */
 			goto reset_and_undo;
 		}
-
+                #ifdef OPLUS_BUG_STABILITY
+                //ZhaoMengqing@CONNECTIVITY.WiFi.Network.internet.1394484, 2019/04/02,add for: When find TCP SYN-ACK Timestamp value error, just do not use Timestamp
+                //if other connection's Timestamp is correct, the network environment may be OK
+                if (tp->rx_opt.saw_tstamp && tp->rx_opt.rcv_tsecr &&
+                    ts_error_threshold > 0 && ts_error_count > 0) {
+                    ts_error_count--;
+                }
+                #endif /* OPLUS_BUG_STABILITY */
 		/* Now ACK is acceptable.
 		 *
 		 * "If the RST bit is set

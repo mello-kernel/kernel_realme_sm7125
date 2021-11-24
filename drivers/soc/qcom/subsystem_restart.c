@@ -43,6 +43,10 @@
 
 #include "peripheral-loader.h"
 
+#ifdef OPLUS_BUG_STABILITY
+#include <soc/oplus/system/oppo_project.h>
+#endif /*OPLUS_BUG_STABILITY */
+
 #define DISABLE_SSR 0x9889deed
 /* If set to 0x9889deed, call to subsystem_restart_dev() returns immediately */
 static uint disable_restart_work;
@@ -211,6 +215,26 @@ struct subsys_device {
 	int notif_state;
 	struct list_head list;
 };
+
+#ifdef OPLUS_FEATURE_ADSP_RECOVERY
+/*Suresh.Alla@MULTIMEDIA.AUDIODRIVER.ADSP.2434874, 2020/08/14, Add for workaround fix adsp stuck issue*/
+static bool oplus_adsp_ssr = false;
+
+void oplus_set_ssr_state(bool ssr_state)
+{
+	oplus_adsp_ssr = ssr_state;
+	pr_err("%s():oplus_adsp_ssr=%d\n", __func__, oplus_adsp_ssr);
+
+}
+EXPORT_SYMBOL(oplus_set_ssr_state);
+
+bool oplus_get_ssr_state(void)
+{
+	pr_err("%s():oplus_adsp_ssr=%d\n", __func__, oplus_adsp_ssr);
+	return oplus_adsp_ssr;
+}
+EXPORT_SYMBOL(oplus_get_ssr_state);
+#endif /* OPLUS_FEATURE_ADSP_RECOVERY */
 
 static struct subsys_device *to_subsys(struct device *d)
 {
@@ -1249,6 +1273,18 @@ int subsystem_restart_dev(struct subsys_device *dev)
 
 	name = dev->desc->name;
 
+	#ifdef OPLUS_FEATURE_ADSP_RECOVERY
+	/*Suresh.Alla@MULTIMEDIA.AUDIODRIVER.ADSP.2434874, 2020/08/14, Add for workaround fix adsp stuck issue*/
+	if (name && !strcmp(name, "adsp")) {
+		if (oplus_get_ssr_state()) {
+			pr_err("%s: adsp restarting, Ignoring request\n", __func__);
+			return 0;
+		} else {
+			oplus_set_ssr_state(true);
+		}
+	}
+	#endif /* OPLUS_FEATURE_ADSP_RECOVERY */
+
 	send_early_notifications(dev->early_notify);
 
 	/*
@@ -1827,6 +1863,13 @@ struct subsys_device *subsys_register(struct subsys_desc *desc)
 	subsys->dev.bus = &subsys_bus_type;
 	subsys->dev.release = subsys_device_release;
 	subsys->notif_state = -1;
+#ifdef OPLUS_BUG_STABILITY
+        /*YiXue.Ge@PSW.BSP.Kernel.Driver,2017/05/15,
+         * Add for init subsyst restart level as RESET_SUBSYS_COUPLED at mp build
+         */
+        if(!oppo_daily_build() && !(get_eng_version() == AGING))
+                subsys->restart_level = RESET_SUBSYS_COUPLED;
+#endif /*OPLUS_BUG_STABILITY */
 	subsys->desc->sysmon_pid = -1;
 	subsys->desc->state = NULL;
 	strlcpy(subsys->desc->fw_name, desc->name,

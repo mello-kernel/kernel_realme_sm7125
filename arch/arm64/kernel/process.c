@@ -68,6 +68,8 @@ unsigned long __stack_chk_guard __read_mostly;
 EXPORT_SYMBOL(__stack_chk_guard);
 #endif
 
+#ifndef CONFIG_OPLUS_FEATURE_QCOM_MINIDUMP_ENHANCE
+/* YiXue.Ge@PSW.BSP.Kernel.Drv, 2017/11/27, add for some fault device can not reboot early */
 /*
  * Function pointers to optional machine specific functions
  */
@@ -75,6 +77,19 @@ void (*pm_power_off)(void);
 EXPORT_SYMBOL_GPL(pm_power_off);
 
 void (*arm_pm_restart)(enum reboot_mode reboot_mode, const char *cmd);
+
+#else
+
+#include <soc/oplus/system/qcom_minidump_enhance.h>
+
+/*
+ * Function pointers to optional machine specific functions
+ */
+void (*pm_power_off)(void) = do_poweroff_early;
+EXPORT_SYMBOL_GPL(pm_power_off);
+void (*arm_pm_restart)(enum reboot_mode reboot_mode, const char *cmd) = do_restart_early;
+
+#endif /* CONFIG_OPLUS_FEATURE_QCOM_MINIDUMP_ENHANCE */
 
 /*
  * This is our default idle handler.
@@ -255,6 +270,10 @@ void __show_regs(struct pt_regs *regs)
 		sp = regs->sp;
 		top_reg = 29;
 	}
+
+#ifdef CONFIG_OPLUS_FEATURE_QCOM_MINIDUMP_ENHANCE //yixue.ge@bsp.drv add for dump cpu contex for minidump
+	dumpcpuregs(regs);
+#endif
 
 	show_regs_print_info(KERN_DEFAULT);
 	print_symbol("pc : %s\n", regs->pc);

@@ -47,6 +47,18 @@
 #include "ion.h"
 #include "ion_secure_util.h"
 
+#ifdef OPLUS_FEATURE_HEALTHINFO
+//Jiheng.Xie@TECH.BSP.Performance, 2019/07/11, add for ion wait monitor
+#if defined(CONFIG_OPPO_HEALTHINFO) && defined (CONFIG_OPPO_MEM_MONITOR)
+#include <linux/oppo_healthinfo/memory_monitor.h>
+#endif
+#endif /* OPLUS_FEATURE_HEALTHINFO */
+
+#ifdef OPLUS_FEATURE_HEALTHINFO
+//Jiheng.Xie@TECH.BSP.Kernel.Performance, 2020/03/24, add for ion total used account
+#include <linux/oppo_healthinfo/oppo_ion.h>
+#endif /* OPLUS_FEATURE_HEALTHINFO */
+
 static struct ion_device *internal_dev;
 static atomic_long_t total_heap_bytes;
 
@@ -173,6 +185,11 @@ static struct ion_buffer *ion_buffer_create(struct ion_heap *heap,
 	ion_buffer_add(dev, buffer);
 	mutex_unlock(&dev->buffer_lock);
 	atomic_long_add(len, &heap->total_allocated);
+#ifdef OPLUS_FEATURE_HEALTHINFO
+/* Huacai.Zhou@PSW.BSP.Kernel.MM, 2018-06-26, add ion total used account*/
+	if (ion_cnt_enable)
+		atomic_long_add(buffer->size, &ion_total_size);
+#endif /* OPLUS_FEATURE_HEALTHINFO */
 	atomic_long_add(len, &total_heap_bytes);
 	return buffer;
 
@@ -189,6 +206,11 @@ void ion_buffer_destroy(struct ion_buffer *buffer)
 		pr_warn_ratelimited("ION client likely missing a call to dma_buf_kunmap or dma_buf_vunmap\n");
 		buffer->heap->ops->unmap_kernel(buffer->heap, buffer);
 	}
+#ifdef OPLUS_FEATURE_HEALTHINFO
+/* Huacai.Zhou@PSW.BSP.Kernel.MM, 2018-06-26, add ion total used account*/
+	if (ion_cnt_enable)
+		atomic_long_sub(buffer->size, &ion_total_size);
+#endif /* OPLUS_FEATURE_HEALTHINFO */
 	buffer->heap->ops->free(buffer);
 	kfree(buffer);
 }
@@ -1061,7 +1083,12 @@ struct dma_buf *ion_alloc_dmabuf(size_t len, unsigned int heap_id_mask,
 	DEFINE_DMA_BUF_EXPORT_INFO(exp_info);
 	struct dma_buf *dmabuf;
 	char task_comm[TASK_COMM_LEN];
-
+#ifdef OPLUS_FEATURE_HEALTHINFO
+//Jiheng.Xie@TECH.BSP.Performance, 2019/07/11, add for ion wait monitor
+#if defined(CONFIG_OPPO_HEALTHINFO) && defined (CONFIG_OPPO_MEM_MONITOR)
+	unsigned long oppo_ionwait_start = jiffies;
+#endif
+#endif /* OPLUS_FEATURE_HEALTHINFO */
 	pr_debug("%s: len %zu heap_id_mask %u flags %x\n", __func__,
 		 len, heap_id_mask, flags);
 	/*
@@ -1080,7 +1107,14 @@ struct dma_buf *ion_alloc_dmabuf(size_t len, unsigned int heap_id_mask,
 		/* if the caller didn't specify this heap id */
 		if (!((1 << heap->id) & heap_id_mask))
 			continue;
-		buffer = ion_buffer_create(heap, dev, len, flags);
+#ifdef CONFIG_OPLUS_ION_BOOSTPOOL
+		if (heap->id == ION_SYSTEM_HEAP_ID &&
+		    (heap_id_mask & (1UL << ION_CAMERA_HEAP_ID)))
+			buffer = ion_buffer_create(heap, dev, len,
+						   flags | ION_FLAG_CAMERA_BUFFER);
+		else
+#endif
+			buffer = ion_buffer_create(heap, dev, len, flags);
 		if (!IS_ERR(buffer) || PTR_ERR(buffer) == -EINTR)
 			break;
 	}
@@ -1106,7 +1140,12 @@ struct dma_buf *ion_alloc_dmabuf(size_t len, unsigned int heap_id_mask,
 		_ion_buffer_destroy(buffer);
 		kfree(exp_info.exp_name);
 	}
-
+#ifdef OPLUS_FEATURE_HEALTHINFO
+//Jiheng.Xie@TECH.BSP.Performance, 2019/07/11, add for ion wait monitor
+#if defined(CONFIG_OPPO_HEALTHINFO) && defined (CONFIG_OPPO_MEM_MONITOR)
+	oppo_ionwait_monitor(jiffies_to_msecs(jiffies - oppo_ionwait_start));
+#endif
+#endif /* OPLUS_FEATURE_HEALTHINFO */
 	return dmabuf;
 }
 

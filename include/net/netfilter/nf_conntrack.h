@@ -29,6 +29,7 @@
 #include <net/netfilter/nf_conntrack_tuple.h>
 
 #define SIP_LIST_ELEMENTS	2
+#define OPLUS_FEATURE_WIFI_LUCKYMONEY
 
 struct sip_length {
 	int msg_length[SIP_LIST_ELEMENTS];
@@ -94,7 +95,27 @@ struct nf_conn {
 	struct hlist_node	nat_bysource;
 #endif
 	/* all members below initialized via memset */
-	struct { } __nfct_init_offset;
+	u8 __nfct_init_offset[0];
+        //#ifdef OPLUS_FEATURE_WIFI_SLA
+        //HuangJunyuan@CONNECTIVITY.WIFI.INTERNET.1197891, 2018/04/10,Add code for appo sla function
+	u32 oplus_game_skb_len;
+	u32 oplus_game_detect_status;
+	u32 oplus_game_time_interval;
+	u32 oplus_game_up_count;
+	u32 oplus_game_down_count;
+	u32 oplus_game_lost_count;
+	u32 oplus_game_same_count;
+	u32 oplus_http_flag;
+	u32 oplus_skb_count;
+	int oplus_app_type;
+	s64 oplus_game_timestamp;
+	s64 oplus_game_last_timestamp;
+	//#endif /* OPLUS_FEATURE_WIFI_SLA */
+
+#ifdef OPLUS_FEATURE_WIFI_LUCKYMONEY
+	//HuangYuan@CONNECTIVITY.WIFI.INTERNET, 2018/06/18, Add for WeChat lucky money recognition
+	u32 oplus_app_uid;
+	#endif /* OPLUS_FEATURE_WIFI_LUCKYMONEY */
 
 	/* If we were expected by an expectation, this will be it */
 	struct nf_conn *master;
