@@ -441,22 +441,22 @@
 /*wuzhipeng@ODM_LQ@BSP.fingerprint,2019/10/08 for goodix fingerprint*/
 		oppo_fp_common {
 			compatible = "oplus,fp_common";
-			oplus,fp_pinctrl_type = <1>;
+			oplus,one_gpio_for_three_ic = <1>;
 			oplus,fp_gpio_num = <1>;
-			qcom,platform-fp-id-gpio = <&pm6150_gpios 5 GPIO_ACTIVE_HIGH>;
-			pinctrl-names = "pullup", "pulldown";
+			oplus,fp_gpio_0 = <&pm6150_gpios 5 GPIO_ACTIVE_HIGH>;
+			pinctrl-names = "gpio_id0_up", "gpio_id0_down";
 			pinctrl-0 = <&fingerprint_pins_pullup>;
 			pinctrl-1 = <&fingerprint_pins_pulldown>;
 			oplus,fp_gpio_pin = <1276>; // &pm6150_gpios 5, Q = 1275, R = 1276
 
 			goodix_optical {
-				oplus,fp-id = <0>; /* pin state unconnected, fp id mapping table. if pin state pullup, id = 2 */
+				oplus,fp-id = <1>; /* pin state unconnected, fp id mapping table. if pin state pullup, id = 2 */
 				vendor-chip = <16>; /* please refer to the struct fp_vendor_t in oppo_fp_commmon.n */
 				eng-menu = "-1,-1"; /* represents SNR, inclination test item in engineer menu, and 0/1 means off/on */
 				chip-name = "G_3626";  /* /proc/fp_id, will be displayed in engineer menu  */
 			};
 			fpc_optical {
-				oplus,fp-id = <1>; /* pin state pulldown, fp id mapping table */
+				oplus,fp-id = <0>; /* pin state pulldown, fp id mapping table */
 				vendor-chip = <20>; /* please refer to the struct fp_vendor_t in oppo_fp_commmon.n */
 				eng-menu = "-1,-1"; /* represents SNR, inclination test item in engineer menu, and 0/1 means off/on */
 				chip-name = "F_1540";  /* /proc/fp_id, will be displayed in engineer menu  */
@@ -492,10 +492,14 @@
 			compatible = "fpc,fpc1020";
 			interrupt-parent = <&tlmm>;
 			interrupts = <90 0x0>;
+			vcc_spi-supply = <&pm6150_l10>;
+			vdd_io-supply = <&pm6150_l10>;
 			ldo-supply = <&pm6150_l10>;
 			ldo-config = <1800000 1800000 60000>;
-			fpc,rst-gpio    = <&tlmm 92 0x0>;
+			vdd_ana-supply = <&pm6150_l10>;
+			fpc,reset-gpio    = <&tlmm 92 0x0>;
 			fpc,irq-gpio    = <&tlmm 90 0x0>;
+			fpc,enable-on-boot;
 			pinctrl-names = "default";
 		};
 //#endif /*OPLUS_FEATURE_FINGERPRINT*/
