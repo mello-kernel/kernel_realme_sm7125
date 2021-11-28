@@ -95,6 +95,7 @@ struct nf_conn {
 	struct hlist_node	nat_bysource;
 #endif
 	/* all members below initialized via memset */
+//	struct { } __nfct_init_offset;
 	u8 __nfct_init_offset[0];
         //#ifdef OPLUS_FEATURE_WIFI_SLA
         //HuangJunyuan@CONNECTIVITY.WIFI.INTERNET.1197891, 2018/04/10,Add code for appo sla function
