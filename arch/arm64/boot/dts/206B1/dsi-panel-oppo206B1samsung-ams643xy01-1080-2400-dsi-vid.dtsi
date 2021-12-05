@@ -622,7 +622,7 @@
 	qcom,platform-reset-gpio = <&pm6150l_gpios 3 0>;
 	oppo,mdss-dsi-vendor-name = "ams643xy01";
 	oppo,mdss-dsi-manufacture = "samsung1024";
-	oppo,aod_ramless;
+	//oppo,aod_ramless;
 	qcom,dsi-select-clocks = "mux_byte_clk0", "mux_pixel_clk0",
 				"src_byte_clk0", "src_pixel_clk0",
 				"shadow_byte_clk0", "shadow_pixel_clk0";
