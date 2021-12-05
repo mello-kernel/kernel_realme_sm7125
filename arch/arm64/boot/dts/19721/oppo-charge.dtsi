@@ -442,7 +442,7 @@
 		reg = <0x26>;
 		qcom,vooc-low-temp = <50>;
 		qcom,oplus_batt_4400mv;
-		qcom,vooc_fw_update_newmethod;
+		//qcom,vooc_fw_update_newmethod;
 		qcom,vooc-high-temp = <430>;
 		qcom,vooc-low-soc = <1>;
 		qcom,vooc-high-soc = <85>;
