@@ -1983,8 +1983,12 @@ static ssize_t oppo_display_set_dimlayer_hbm(struct device *dev,
 		}
 	}
 
-	oppo_dimlayer_hbm = value;
-
+	if (!(get_oppo_display_power_status() == OPPO_DISPLAY_POWER_DOZE ||
+		get_oppo_display_power_status() == OPPO_DISPLAY_POWER_DOZE_SUSPEND)) {
+		oppo_dimlayer_hbm = value;
+	}
+        pr_err("debug for oppo_display_set_dimlayer_hbm get_oppo_display_power_status = %d\n",
+		get_oppo_display_power_status());
 #ifdef VENDOR_EDIT
 	/* Hu Jie@PSW.MM.Display.Lcd.Stability, 2019-09-27, add log at display key evevnt */
 	pr_err("debug for oppo_display_set_dimlayer_hbm set oppo_dimlayer_hbm = %d\n",
@@ -2635,6 +2639,7 @@ int dsi_display_oppo_set_power(struct drm_connector *connector,
 			break;
 		}
 		set_oppo_display_power_status(OPPO_DISPLAY_POWER_DOZE_SUSPEND);
+		oppo_dimlayer_hbm = 0;
 		break;
 	case SDE_MODE_DPMS_ON:
 		blank = MSM_DRM_BLANK_UNBLANK;
