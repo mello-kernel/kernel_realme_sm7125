@@ -3,9 +3,16 @@ version: 2.0
 jobs:
   Mello-Oof:
     docker:
-      - image: panchajanya1999/archlinux:latest
+      - image: ubuntu:jammy-20211029
     steps:
-      - run: pacman -Sy && pacman -S cpio --noconfirm
+      - run: apt update && apt upgrade -y && apt install -f -y git wget
+      - run: wget https://raw.githubusercontent.com/realme-sm7125/myscripts/main/sources.list
+      - run: wget https://raw.githubusercontent.com/realme-sm7125/myscripts/main/99own
+      - run: cp -af sources.list /etc/apt/ && rm -rf sources.list
+      - run: cp -af 99own /etc/apt/apt.conf.d/ && rm -rf 99own
+      - run: apt update && apt upgrade -y
+      - run: ln -fs /usr/share/zoneinfo/Asia/Kolkata /etc/localtime && date
+      - run: apt install -f -y git bison flex libxml2 libssl-dev bc zip ccache p7zip default-jre python3 python3-pip wget curl
       - run: git clone --depth=1 https://github.com/${CIRCLE_PROJECT_USERNAME}/${CIRCLE_PROJECT_REPONAME} -b ${CIRCLE_BRANCH} .
       - run: wget https://raw.githubusercontent.com/realme-sm7125/myscripts/main/kernel_build.sh
       - run: bash kernel_build.sh
