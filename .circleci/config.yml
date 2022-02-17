@@ -12,7 +12,7 @@ jobs:
       - run: cp -af 99own /etc/apt/apt.conf.d/ && rm -rf 99own
       - run: apt update && apt upgrade -y
       - run: ln -fs /usr/share/zoneinfo/Asia/Kolkata /etc/localtime && date
-      - run: apt install -f -y git bison flex libxml2 libssl-dev bc zip ccache p7zip default-jre python3 python3-pip wget curl
+      - run: apt install -f -y git bison flex libxml2 libssl-dev bc zip ccache p7zip default-jre python3 python3-pip wget curl cpio
       - run: git clone --depth=1 https://github.com/${CIRCLE_PROJECT_USERNAME}/${CIRCLE_PROJECT_REPONAME} -b ${CIRCLE_BRANCH} .
       - run: wget https://raw.githubusercontent.com/realme-sm7125/myscripts/main/kernel_build.sh
       - run: bash kernel_build.sh
