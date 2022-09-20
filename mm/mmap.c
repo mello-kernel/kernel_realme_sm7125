@@ -2826,6 +2826,7 @@ static void unmap_region(struct mm_struct *mm,
 	struct vm_area_struct *next = prev ? prev->vm_next : mm->mmap;
 #endif
 	struct mmu_gather tlb;
+	struct vm_area_struct *cur_vma;
 
 #if defined(OPLUS_FEATURE_VIRTUAL_RESERVE_MEMORY) && defined(CONFIG_VIRTUAL_RESERVE_MEMORY)
 	if (BACKUP_ALLOC_FLAG(vma->vm_flags)) {
@@ -2848,8 +2849,12 @@ static void unmap_region(struct mm_struct *mm,
 	 * concurrent flush in this region has to be coming through the rmap,
 	 * and we synchronize against that using the rmap lock.
 	 */
-	if ((vma->vm_flags & (VM_PFNMAP|VM_MIXEDMAP)) != 0)
-		tlb_flush_mmu(&tlb);
+	for (cur_vma = vma; cur_vma; cur_vma = cur_vma->vm_next) {
+		if ((cur_vma->vm_flags & (VM_PFNMAP|VM_MIXEDMAP)) != 0) {
+			tlb_flush_mmu(&tlb);
+			break;
+		}
+	}
 
 #if defined(OPLUS_FEATURE_VIRTUAL_RESERVE_MEMORY) && defined(CONFIG_VIRTUAL_RESERVE_MEMORY)
 	free_pgtables(&tlb, vma, prev ? prev->vm_end : free_flooring_addr,
