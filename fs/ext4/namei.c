@@ -1574,11 +1574,10 @@ static struct buffer_head *__ext4_find_entry(struct inode *dir,
 					     &has_inline_data);
 		if (lblk)
 			*lblk = 0;
-		if (has_inline_data) {
-			if (inlined)
-				*inlined = 1;
+		if (inlined)
+			*inlined = has_inline_data;
+		if (has_inline_data)
 			goto cleanup_and_exit;
-		}
 	}
 
 	if ((namelen <= 2) && (name[0] == '.') &&
@@ -3853,8 +3852,8 @@ static int ext4_rename(struct inode *old_dir, struct dentry *old_dentry,
 			return retval;
 	}
 
-	old.bh = ext4_find_entry(old.dir, &old.dentry->d_name, &old.de, NULL,
-				&old.lblk);
+	old.bh = ext4_find_entry(old.dir, &old.dentry->d_name, &old.de,
+				&old.inlined, &old.lblk);
 	if (IS_ERR(old.bh))
 		return PTR_ERR(old.bh);
 	/*
