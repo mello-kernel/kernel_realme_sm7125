@@ -187,6 +187,8 @@
 			qcom,charger-temp-max = <800>;
 			qcom,smb-temp-max = <800>;
 
+                        qcom,oplus-pps-usbpd-detection = <&pm8150b_pdphy>;
+
 			qcom,chgr@1000 {
 				reg = <0x1000 0x100>;
 				interrupts =
